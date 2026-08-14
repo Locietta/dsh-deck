@@ -1,0 +1,21 @@
+[package]
+name = "dsh-deck"
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+description = "System-WebView desktop shell for DeepSeek Harness"
+
+[dependencies]
+anyhow = "1.0.100"
+clap = { version = "4.5.50", features = ["derive", "env"] }
+command-group = "5.0.1"
+tao = "0.35.3"
+url = "2.5.7"
+wry = "0.55.1"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

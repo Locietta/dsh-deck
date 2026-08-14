@@ -1,0 +1,20 @@
+{
+  "name": "dsh-deck",
+  "version": "0.0.0",
+  "private": true,
+  "description": "System-WebView desktop shell for DeepSeek Harness",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "cargo build --release --manifest-path native/Cargo.toml",
+    "check": "pnpm run check:native && node --check scripts/build-bundle.mjs",
+    "check:native": "cargo fmt --manifest-path native/Cargo.toml --check && cargo check --manifest-path native/Cargo.toml && cargo test --manifest-path native/Cargo.toml",
+    "dev": "cargo run --manifest-path native/Cargo.toml --",
+    "package": "node scripts/build-bundle.mjs",
+    "start": "cargo run --release --manifest-path native/Cargo.toml --"
+  }
+}

@@ -1,0 +1,6 @@
+# pnpm blocks dependency lifecycle scripts unless they are reviewed here.
+strictDepBuilds: true
+
+allowBuilds:
+  # tsx uses esbuild's platform binary for TypeScript source execution.
+  esbuild: true
