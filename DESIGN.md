@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-- Status: Active — WebView MVP and integrated Windows chrome selected, brand identity open
+- Status: Active — WebView MVP, integrated Windows chrome, and dsh-family identity selected
 - Last refreshed: 2026-08-15
 - Primary product surface: the existing dsh Web UI hosted in a native system WebView
 - Evidence reviewed: dsh Web bundle and browser plugin architecture and Wry 0.55 system-WebView support
@@ -26,7 +26,7 @@ Decision — on Windows, DSH Deck removes the operating system title bar and res
 - Trust signals: visible system state, exact action labels, reversible operations, and honest progress/error reporting.
 - Avoid: ornamental dashboard density, imitation terminal aesthetics everywhere, anthropomorphic agent decoration, and hidden automation.
 
-The name is **DSH Deck**. Logo, icon family, and public-facing relationship to the DeepSeek Harness brand remain open. Until that is resolved, the working visual identity is deliberately brand-neutral: graphite surfaces, one restrained interactive blue, and no logotype lockups baked into components (Assumption).
+The name is **DSH Deck**. Decision — DSH Deck is an MIT-licensed open-source desktop packaging of dsh and presents itself as part of the DeepSeek Harness family, not as a separate brand. It reuses the dsh whale mark for the application icon and title strip and maintains no logo, brand font, or marketing identity of its own; brand differentiation and commercial positioning are non-goals. The rest of the visual identity is simply what the dsh Web UI already ships: graphite surfaces and one restrained interactive blue.
 
 ## Product goals
 
@@ -156,7 +156,7 @@ Status — each role has a foreground and a dim surface tint for block backgroun
 
 Rules: status is always paired with a glyph or label, never color alone. Optimistic (uncommitted) content uses `text-secondary` with a `border-subtle` left rule and reconciles to primary styling when dsh commits it. A light theme reuses these token names; its values are an open question.
 
-Assumption: the accent blue is a placeholder compatible with DeepSeek's blue family but chosen for contrast, not brand. It changes at most once, when the identity question resolves.
+The accent blue is compatible with DeepSeek's blue family but chosen for contrast, not brand. With the identity settled on the dsh family, it changes only if the dsh Web UI's own tokens change.
 
 ### Typography
 
@@ -196,7 +196,7 @@ Decision:
 
 ### Iconography
 
-- Style: 16px stroke icons, 1.5px stroke, single color inheriting text tokens (Assumption: sourced from Lucide; final family open until the identity question resolves).
+- Style: 16px stroke icons, 1.5px stroke, single color inheriting text tokens (Assumption: sourced from Lucide). The dsh whale mark is the only figurative icon and appears solely as window/application identity, never as a UI glyph.
 - Every icon-only control has an accessible label and a tooltip; status glyphs (`running` spinner-dot, `✓`, `!`, `×` equivalents) always sit next to or under a text label at first use in a view.
 - No illustrations or mascots. Empty states are text plus one primary action.
 
@@ -326,7 +326,6 @@ Decision — every interactive control implements this ladder with token values;
 ## Open questions
 
 - [ ] Who is the first narrow user persona beyond “developer using dsh”?
-- [ ] Which visual identity and relationship to DeepSeek Harness branding should the app use? (This may replace the placeholder accent and icon family; surface, text, and status tokens are settled independently of it.)
 - [ ] What are the light theme's token values, and is a light theme required before 1.0?
 - [ ] Does dsh's Web UI set an Enter-to-send expectation that the composer must match?
 - [ ] What accessibility conformance target is realistic across WebView2 and WebKitGTK?
