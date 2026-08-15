@@ -230,14 +230,15 @@ fn resolve_initial_target(args: &Args, proxy: &EventLoopProxy<UserEvent>) -> Res
     }
 
     let (mut command, description) = if let Some(root) = args.dsh_root.as_ref() {
-        let mut command = Command::new(&args.pnpm);
+        let pnpm = resolve_pnpm(&args.pnpm);
+        let mut command = Command::new(&pnpm);
         command
             .arg("--dir")
             .arg(root)
             .args(["dsh", "web", "--port", "0"]);
         (
             command,
-            format!("dsh through {} in {}", args.pnpm.display(), root.display()),
+            format!("dsh through {} in {}", pnpm.display(), root.display()),
         )
     } else {
         let root = match args.runtime.clone() {
@@ -254,11 +255,15 @@ fn resolve_initial_target(args: &Args, proxy: &EventLoopProxy<UserEvent>) -> Res
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
     let mut group = command.group();
-    group.kill_on_drop(true);
+    // kill_on_drop and creation_flags exist on Windows builders only; Unix
+    // relies on the explicit stop_child teardown. command-group writes the
+    // final flags while adding CREATE_SUSPENDED, so CREATE_NO_WINDOW must be
+    // set on its builder rather than on Command.
     #[cfg(target_os = "windows")]
-    // command-group writes the final flags while adding CREATE_SUSPENDED, so
-    // CREATE_NO_WINDOW must be set on its builder rather than on Command.
-    group.creation_flags(CREATE_NO_WINDOW);
+    {
+        group.kill_on_drop(true);
+        group.creation_flags(CREATE_NO_WINDOW);
+    }
     let mut child = group
         .spawn()
         .with_context(|| format!("failed to start {description}"))?;
@@ -269,6 +274,26 @@ fn resolve_initial_target(args: &Args, proxy: &EventLoopProxy<UserEvent>) -> Res
         .context("dsh stdout was not piped")?;
     spawn_stdout_reader(stdout, proxy.clone());
     Ok(InitialTarget::Child(child))
+}
+
+/// Resolve the default bare `pnpm` name on Windows, where `CreateProcess`
+/// appends only `.exe` and misses the `pnpm.cmd` shim that npm and corepack
+/// install. Explicitly configured paths are used as given.
+fn resolve_pnpm(configured: &Path) -> PathBuf {
+    #[cfg(target_os = "windows")]
+    if configured.as_os_str() == "pnpm"
+        && let Some(path) = std::env::var_os("PATH")
+    {
+        for directory in std::env::split_paths(&path) {
+            for name in ["pnpm.exe", "pnpm.cmd", "pnpm.bat"] {
+                let candidate = directory.join(name);
+                if candidate.is_file() {
+                    return candidate;
+                }
+            }
+        }
+    }
+    configured.to_path_buf()
 }
 
 fn adjacent_runtime_root() -> Result<PathBuf> {

@@ -55,15 +55,28 @@ function assertSafeOutput(path) {
   }
 }
 
+function shellArgument(value) {
+  if (value.includes('"')) fail(`cannot pass an argument containing a double quote through cmd.exe: ${value}`)
+  return /\s/.test(value) ? `"${value}"` : value
+}
+
 function run(command, args, options = {}) {
   const rendered = [command, ...args].join(' ')
   console.log(`> ${rendered}`)
-  const result = spawnSync(command, args, {
+  // PATH-resolved commands such as pnpm are .cmd shims on Windows, which Node
+  // refuses to spawn directly, so those run as an explicitly quoted cmd.exe
+  // command line instead.
+  const shell = process.platform === 'win32' && !isAbsolute(command)
+  const spawnOptions = {
     cwd: options.cwd,
     env: process.env,
     encoding: 'utf8',
+    shell,
     stdio: options.capture ? ['ignore', 'pipe', 'inherit'] : 'inherit',
-  })
+  }
+  const result = shell
+    ? spawnSync([command, ...args.map(shellArgument)].join(' '), spawnOptions)
+    : spawnSync(command, args, spawnOptions)
   if (result.error) throw new Error(`failed to run ${rendered}`, { cause: result.error })
   if (result.status !== 0) fail(`${rendered} exited with status ${String(result.status)}`)
   return options.capture ? result.stdout.trim() : ''
@@ -291,5 +304,6 @@ try {
   main()
 } catch (error) {
   console.error(error instanceof Error ? error.message : error)
+  if (error instanceof Error && error.cause !== undefined) console.error(error.cause)
   process.exitCode = 1
 }
