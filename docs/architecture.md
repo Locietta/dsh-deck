@@ -44,7 +44,7 @@ Desktop-only features belong in Cordis Host plugins and should reuse existing br
 
 ## Platform boundary
 
-Wry uses WebView2 on Windows and WebKitGTK 4.1 on Linux. Tao owns window-system integration. Platform dependencies, packaging, code signing, and updates stay outside dsh capability APIs.
+Wry uses WebView2 on Windows and WebKitGTK 4.1 on Linux. Tao owns window-system integration. Windows release builds use the GUI subsystem, create dsh child processes without console windows, and replace system decorations with WebView-hosted controls that send a closed set of window actions to Tao. Linux retains system decorations. Platform dependencies, packaging, code signing, and updates stay outside dsh capability APIs.
 
 DSH Deck source is MIT-licensed. Wry and Tao are dual MIT/Apache-2.0. A binary release must aggregate the complete transitive notices of the native and Node distributions.
 

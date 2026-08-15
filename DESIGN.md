@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-- Status: Active — WebView MVP selected, brand identity open
+- Status: Active — WebView MVP and integrated Windows chrome selected, brand identity open
 - Last refreshed: 2026-08-15
 - Primary product surface: the existing dsh Web UI hosted in a native system WebView
 - Evidence reviewed: dsh Web bundle and browser plugin architecture and Wry 0.55 system-WebView support
@@ -17,6 +17,8 @@ Decision — the first usable DSH Deck release reuses the complete dsh Web UI in
 A future native surface must justify itself with a desktop-only job that the Web UI and host capability plugins cannot satisfy.
 
 Desktop-owned presentation is deliberately narrow: native window creation, a local startup state, a local runtime-unavailable state, application icon and metadata, and future platform dialogs that belong outside browser content. These surfaces should visually defer to the Web UI instead of introducing a competing design system.
+
+Decision — on Windows, DSH Deck removes the operating system title bar and reserves a 36px WebView title strip for window drag, minimize, maximize/restore, and close. The strip consumes the Web UI's own color, typography, border, hover, and focus tokens, with neutral fallbacks for the pre-runtime loading page. It contains no application navigation or duplicated runtime/session state. Release builds use the Windows GUI subsystem and start child processes without console windows; development builds retain their console for diagnostics.
 
 ## Brand
 
@@ -52,7 +54,7 @@ Broader personas and non-coding workflows require validation before they influen
 
 ## Information architecture
 
-Decision — the shipping information architecture is owned by the dsh Web UI. DSH Deck must not add an outer navigation rail, toolbar, status bar, or duplicated session state around it. Native startup and error pages disappear as soon as the loopback Web UI is ready.
+Decision — the shipping information architecture is owned by the dsh Web UI. DSH Deck must not add an outer navigation rail, application toolbar, status bar, or duplicated session state around it. The Windows title strip is window chrome only. Native startup and error pages disappear as soon as the loopback Web UI is ready.
 
 The provisional native workbench hierarchy below is retained only as historical product-design input.
 
@@ -312,14 +314,14 @@ Decision — every interactive control implements this ladder with token values;
 ## Implementation constraints
 
 - Framework: Wry 0.55 over the operating system WebView, with Tao owning the native event loop.
-- Runtime: the MVP starts `dsh web --port 0` from a source checkout or connects to an explicitly supplied loopback URL.
+- Runtime: the packaged product starts its adjacent Node and dsh runtime; development mode starts `dsh web --port 0` from a source checkout or connects to an explicitly supplied loopback URL.
 - Transport: load the exact `http://127.0.0.1:<port>` origin announced by dsh. Do not move assets to a custom protocol because that would split the Web UI and `/api` origins.
 - Plugin UI: the host-provided `window.__DSH_BOOT__` graph remains the only browser plugin composition source.
 - Security: accept loopback URLs only until dsh has a real remote authentication layer. Do not broaden the server bind or trust fence from the desktop shell.
 - Lifecycle: closing the only MVP window stops the complete process group of a runtime started by DSH Deck; a runtime supplied through `--url` remains externally owned.
 - Package management: pnpm remains the repository entry point; pnpm scripts invoke Cargo and build the self-contained Node and dsh runtime bundle.
-- Compatibility: Windows uses WebView2; Linux uses WebKitGTK 4.1. Packaging, code signing, updates, and a bundled dsh runtime remain later milestones.
-- Verification: Rust formatting, check and unit tests are baseline; the product gate starts a real dsh Web composition and captures the resulting DSH Deck window.
+- Compatibility: Windows uses WebView2 and integrated frameless chrome; Linux uses WebKitGTK 4.1 with system decorations. Code signing and updates remain later milestones.
+- Verification: Rust formatting, check and unit tests are baseline; the product gate starts the bundled dsh Web composition, confirms that no console window appears, and captures the resulting DSH Deck window including drag and window-control behavior.
 
 ## Open questions
 

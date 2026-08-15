@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::{
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
@@ -23,6 +25,10 @@ use url::{Host, Url};
 use wry::{WebView, WebViewBuilder};
 
 const READY_PREFIX: &str = "dsh web: ";
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+#[cfg(target_os = "windows")]
+const WINDOW_CHROME_SCRIPT: &str = include_str!("window-chrome.js");
 const LOADING_HTML: &str = r#"<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
@@ -76,10 +82,19 @@ struct Args {
     runtime: Option<PathBuf>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WindowAction {
+    Drag,
+    Minimize,
+    ToggleMaximize,
+    Close,
+}
+
 #[derive(Debug)]
 enum UserEvent {
     ServerReady(Url),
     ServerFailed(String),
+    WindowAction(WindowAction),
     Tick,
 }
 
@@ -91,14 +106,18 @@ fn main() -> Result<()> {
 fn run(args: Args) -> Result<()> {
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
-    let window = WindowBuilder::new()
+    let window_builder = WindowBuilder::new()
         .with_title("DSH Deck")
         .with_inner_size(LogicalSize::new(1280.0, 800.0))
         .with_min_inner_size(LogicalSize::new(800.0, 520.0))
-        .with_visible(false)
+        .with_visible(false);
+    #[cfg(target_os = "windows")]
+    let window_builder = window_builder.with_decorations(false);
+    let window = window_builder
         .build(&event_loop)
         .context("failed to create the DSH Deck window")?;
-    let webview = build_webview(&window).context("failed to create the system WebView")?;
+    let webview =
+        build_webview(&window, proxy.clone()).context("failed to create the system WebView")?;
     window.set_visible(true);
 
     let mut child = match resolve_initial_target(&args, &proxy)? {
@@ -129,6 +148,24 @@ fn run(args: Args) -> Result<()> {
                 stop_child(&mut child);
                 show_error(&window, &webview, &message);
             }
+            Event::UserEvent(UserEvent::WindowAction(action)) => match action {
+                WindowAction::Drag => {
+                    if let Err(error) = window.drag_window() {
+                        eprintln!("dsh-deck: failed to drag window: {error}");
+                    }
+                }
+                WindowAction::Minimize => window.set_minimized(true),
+                WindowAction::ToggleMaximize => {
+                    let maximized = !window.is_maximized();
+                    window.set_maximized(maximized);
+                    sync_window_chrome(&webview, maximized);
+                }
+                WindowAction::Close => {
+                    ticker_running.store(false, Ordering::Relaxed);
+                    stop_child(&mut child);
+                    *control_flow = ControlFlow::Exit;
+                }
+            },
             Event::UserEvent(UserEvent::Tick) => {
                 if let Some(process) = child.as_mut() {
                     match process.try_wait() {
@@ -153,6 +190,7 @@ fn run(args: Args) -> Result<()> {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
+                sync_window_chrome(&webview, window.is_maximized());
                 #[cfg(target_os = "linux")]
                 if let Err(error) = webview.set_bounds(wry::Rect {
                     position: tao::dpi::PhysicalPosition::new(0, 0).into(),
@@ -215,10 +253,13 @@ fn resolve_initial_target(args: &Args, proxy: &EventLoopProxy<UserEvent>) -> Res
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
-
-    let mut child = command
-        .group()
-        .kill_on_drop(true)
+    let mut group = command.group();
+    group.kill_on_drop(true);
+    #[cfg(target_os = "windows")]
+    // command-group writes the final flags while adding CREATE_SUSPENDED, so
+    // CREATE_NO_WINDOW must be set on its builder rather than on Command.
+    group.creation_flags(CREATE_NO_WINDOW);
+    let mut child = group
         .spawn()
         .with_context(|| format!("failed to start {description}"))?;
     let stdout = child
@@ -315,10 +356,41 @@ fn spawn_ticker(proxy: EventLoopProxy<UserEvent>, running: Arc<AtomicBool>) {
     });
 }
 
-fn build_webview(window: &Window) -> wry::Result<WebView> {
+fn parse_window_action(message: &str) -> Option<WindowAction> {
+    match message {
+        "dsh-deck:drag" => Some(WindowAction::Drag),
+        "dsh-deck:minimize" => Some(WindowAction::Minimize),
+        "dsh-deck:toggle-maximize" => Some(WindowAction::ToggleMaximize),
+        "dsh-deck:close" => Some(WindowAction::Close),
+        _ => None,
+    }
+}
+
+fn sync_window_chrome(webview: &WebView, maximized: bool) {
+    let script = format!(
+        "window.__DSH_DECK_SET_MAXIMIZED__?.({})",
+        if maximized { "true" } else { "false" }
+    );
+    if let Err(error) = webview.evaluate_script(&script) {
+        eprintln!("dsh-deck: failed to update window controls: {error}");
+    }
+}
+
+fn build_webview(window: &Window, proxy: EventLoopProxy<UserEvent>) -> wry::Result<WebView> {
     let builder = WebViewBuilder::new()
         .with_html(LOADING_HTML)
         .with_devtools(cfg!(debug_assertions));
+
+    #[cfg(target_os = "windows")]
+    let builder = builder
+        .with_initialization_script(WINDOW_CHROME_SCRIPT)
+        .with_ipc_handler(move |request| {
+            if let Some(action) = parse_window_action(request.body()) {
+                let _ = proxy.send_event(UserEvent::WindowAction(action));
+            }
+        });
+    #[cfg(not(target_os = "windows"))]
+    let _ = proxy;
 
     #[cfg(target_os = "linux")]
     {
@@ -450,5 +522,19 @@ mod tests {
                 .join("lib")
                 .join("bin.js")
         );
+    }
+
+    #[test]
+    fn accepts_only_owned_window_actions() {
+        assert_eq!(
+            parse_window_action("dsh-deck:drag"),
+            Some(WindowAction::Drag)
+        );
+        assert_eq!(
+            parse_window_action("dsh-deck:toggle-maximize"),
+            Some(WindowAction::ToggleMaximize)
+        );
+        assert_eq!(parse_window_action("close"), None);
+        assert_eq!(parse_window_action("dsh-deck:unknown"), None);
     }
 }

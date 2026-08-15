@@ -4,7 +4,7 @@ Native desktop shell for [DeepSeek Harness](https://github.com/deepseek-ai/DeepS
 
 ## Status
 
-The desktop shell starts the bundled Node and dsh runtime beside its executable, waits for the loopback readiness URL, and opens that URL in a Wry window. Development mode can instead start dsh from a source checkout or connect to an already-running loopback Web UI.
+The desktop shell starts the bundled Node and dsh runtime beside its executable, waits for the loopback readiness URL, and opens that URL in a Wry window. Windows release builds use WebUI-matched frameless window controls and do not open a console window. Development mode can instead start dsh from a source checkout or connect to an already-running loopback Web UI.
 
 ## Requirements
 
