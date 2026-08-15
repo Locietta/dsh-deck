@@ -44,9 +44,28 @@ Use pnpm as the only package manager. Keep `packageManager` and the lockfile aut
 
 ## Change expectations
 
-- Update `README.md`, `DESIGN.md`, or `docs/architecture.md` when their stated behavior or decisions change.
+- Update `README.md`, or `docs/architecture.md` when their stated behavior or decisions change.
 - Add focused tests for startup parsing, URL policy, bundle layout, lifecycle, and visible failure behavior.
 - Run the smallest checks that cover the change; `pnpm check` is the baseline before publishing a branch.
 - Never commit credentials, generated `dist/`, `target/`, `node_modules/`, local absolute paths, or package-manager files from another tool.
 - Preserve `LICENSE` and third-party notices. Generate a complete dependency notice before distributing binaries.
 - Files end with exactly one trailing newline.
+
+## Commit message style
+
+The headline of a commit should follow the format: `<type>(<scope>): <subject>`, type or scope can be omitted if not applicable.
+
+If the commit is big enough and you cannot describe all important changes in the headline, you can add a body to the commit message. The body should be separated from the headline by a blank line, and preferably be a list of bullet points.
+
+An example:
+
+```
+refactor(tui): centralize slash command parsing
+
+- Lexes REPL input once into either a user prompt or an exact command name and argument string.
+- Resolves commands and aliases centrally and keeps command recognition out of individual handlers.
+- Rejects unknown slash commands instead of submitting them to the model.
+- Supports a leading double slash as an escaped slash-prefixed user prompt.
+```
+
+Do not contain body text if the change is trivial or small.
