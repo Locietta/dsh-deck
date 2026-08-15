@@ -13,6 +13,9 @@ tao = "0.35.3"
 url = "2.5.7"
 wry = "0.55.1"
 
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1.23"
+
 [lints.rust]
 unsafe_code = "forbid"
 

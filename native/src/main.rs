@@ -114,7 +114,24 @@ fn run(args: Args) -> Result<()> {
         .with_min_inner_size(LogicalSize::new(800.0, 520.0))
         .with_visible(false);
     #[cfg(target_os = "windows")]
-    let window_builder = window_builder.with_decorations(false);
+    let window_builder = {
+        use tao::platform::windows::{IconExtWindows, WindowBuilderExtWindows};
+
+        let mut builder = window_builder.with_decorations(false);
+        // Icon resource 1 is the whale icon that build.rs embeds into the
+        // executable.
+        match tao::window::Icon::from_resource(1, None) {
+            Ok(icon) => {
+                builder = builder
+                    .with_window_icon(Some(icon.clone()))
+                    .with_taskbar_icon(Some(icon));
+            }
+            Err(error) => {
+                eprintln!("dsh-deck: failed to load the embedded application icon: {error}");
+            }
+        }
+        builder
+    };
     let window = window_builder
         .build(&event_loop)
         .context("failed to create the DSH Deck window")?;
