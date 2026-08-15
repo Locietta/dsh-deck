@@ -250,6 +250,11 @@ fn resolve_initial_target(args: &Args, proxy: &EventLoopProxy<UserEvent>) -> Res
         let (node, dsh) = packaged_runtime_paths(&root)?;
         let mut command = Command::new(&node);
         command.arg(dsh).args(["web", "--port", "0"]);
+        if std::env::var_os("NODE_COMPILE_CACHE").is_none()
+            && let Some(cache) = node_compile_cache_dir()
+        {
+            command.env("NODE_COMPILE_CACHE", cache);
+        }
         (command, format!("packaged dsh through {}", node.display()))
     };
     command
@@ -311,6 +316,22 @@ fn adjacent_runtime_root() -> Result<PathBuf> {
         )
     }
     Ok(runtime)
+}
+
+/// Per-user directory for Node's on-disk compile cache. The packaged runtime
+/// re-parses and re-compiles its whole module graph on every launch;
+/// NODE_COMPILE_CACHE lets Node persist V8 bytecode across launches instead.
+/// The bundle directory itself may be read-only, so the cache lives in the
+/// platform user cache location; without one the cache is simply disabled.
+fn node_compile_cache_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    #[cfg(not(target_os = "windows"))]
+    let base = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")));
+    Some(base?.join("dsh-deck").join("node-compile-cache"))
 }
 
 fn packaged_runtime_paths(root: &Path) -> Result<(PathBuf, PathBuf)> {
