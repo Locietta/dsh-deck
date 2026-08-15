@@ -76,10 +76,13 @@ jobs:
 
       - name: Zip bundle
         id: zip
+        # Archive from inside dist/ so the bundle folder is the zip root
+        # instead of being nested under dist/.
+        working-directory: dist
         run: |
           $name = "dsh-deck-${{ inputs.version }}-win-x64"
-          Rename-Item dist/bundle $name
-          7z a "$name.zip" "dist/$name"
+          Rename-Item bundle $name
+          7z a "../$name.zip" $name
           "artifact=$name" | Out-File -Append $env:GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v7
