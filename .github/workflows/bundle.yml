@@ -1,0 +1,79 @@
+name: Bundle
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Version label used in the bundle and artifact names
+        required: true
+        type: string
+      retention-days:
+        description: Artifact retention in days
+        required: false
+        type: number
+        default: 90
+    outputs:
+      artifact:
+        description: Name of the uploaded bundle artifact
+        value: ${{ jobs.bundle.outputs.artifact }}
+
+jobs:
+  bundle:
+    name: Bundle (win-x64)
+    runs-on: windows-latest
+    outputs:
+      artifact: ${{ steps.zip.outputs.artifact }}
+    env:
+      RUNTIME_NODE_VERSION: 26.7.0
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: deepseek-ai/deepseek-harness
+          path: dsh-src
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.20.0
+          cache: pnpm
+          cache-dependency-path: '**/pnpm-lock.yaml'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+
+      - name: Download portable Node runtime
+        run: |
+          $archive = "node-v$env:RUNTIME_NODE_VERSION-win-x64"
+          curl.exe --fail --silent --show-error --location --output "$archive.zip" "https://nodejs.org/dist/v$env:RUNTIME_NODE_VERSION/$archive.zip"
+          Expand-Archive "$archive.zip" -DestinationPath node-dist
+          "NODE_ROOT=node-dist/$archive" | Out-File -Append $env:GITHUB_ENV
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: dsh-src
+
+      - name: Build and package bundle
+        run: pnpm package -- --dsh-root dsh-src --node-root $env:NODE_ROOT
+
+      - name: Zip bundle
+        id: zip
+        run: |
+          $name = "dsh-deck-${{ inputs.version }}-win-x64"
+          Rename-Item dist/bundle $name
+          7z a "$name.zip" "dist/$name"
+          "artifact=$name" | Out-File -Append $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.zip.outputs.artifact }}
+          path: ${{ steps.zip.outputs.artifact }}.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: ${{ inputs.retention-days }}

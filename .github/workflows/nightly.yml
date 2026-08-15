@@ -1,0 +1,20 @@
+name: Nightly
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    uses: ./.github/workflows/bundle.yml
+    with:
+      version: nightly-${{ github.run_number }}
+      retention-days: 14

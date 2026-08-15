@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    uses: ./.github/workflows/bundle.yml
+    with:
+      version: ${{ github.ref_name }}
+
+  publish:
+    name: Publish GitHub release
+    needs: bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.bundle.outputs.artifact }}
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: '*.zip'
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
