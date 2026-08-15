@@ -6,9 +6,10 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs'
-import { basename, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -154,6 +155,60 @@ function packageDependencies(files) {
   return { allowScripts: INSTALL_SCRIPT_POLICY, dependencies }
 }
 
+// The installed runtime tree ships development artifacts the runtime never
+// loads. Vendor packages are trimmed to what dsh's own packages ship: compiled
+// JS plus type declarations. First-party packages are left untouched, and
+// declarations stay everywhere because runtime-composed plugins are written
+// against these APIs.
+const FIRST_PARTY_SCOPE = `${sep}node_modules${sep}@deepseek-ai${sep}`
+
+function isDeclarationFile(name) {
+  return /\.d\.[cm]?ts$/.test(name)
+}
+
+function isVendorOnlyArtifact(name) {
+  if (name.endsWith('.map')) return true
+  return /\.[cm]?ts$/.test(name) && !isDeclarationFile(name)
+}
+
+function pruneRuntimeTree(root) {
+  const nativeTarget = `${process.platform}-${process.arch}`
+  let bytes = 0
+  let entries = 0
+  const remove = (path, size) => {
+    rmSync(path, { recursive: true, force: true })
+    bytes += size
+    entries += 1
+  }
+  const directorySize = path =>
+    readdirSync(path, { recursive: true, withFileTypes: true })
+      .filter(entry => entry.isFile())
+      .reduce((sum, entry) => sum + statSync(join(entry.parentPath, entry.name)).size, 0)
+
+  const walk = directory => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) {
+        if (basename(directory) === 'prebuilds' && entry.name !== nativeTarget) {
+          remove(path, directorySize(path))
+        } else {
+          walk(path)
+        }
+        continue
+      }
+      if (!entry.isFile()) continue
+      const firstParty = path.includes(FIRST_PARTY_SCOPE)
+      if (entry.name.endsWith('.pdb') || (!firstParty && isVendorOnlyArtifact(entry.name))) {
+        remove(path, statSync(path).size)
+      }
+    }
+  }
+  walk(root)
+  console.log(
+    `pruned ${(bytes / 1024 / 1024).toFixed(1)} MB of development artifacts (${String(entries)} entries)`,
+  )
+}
+
 function nativeExecutable() {
   return join(
     PROJECT_ROOT,
@@ -249,6 +304,7 @@ function main() {
     run(node.executable, [join(subprocessRoot, 'scripts', 'ensure-spawn-helper.mjs')], {
       cwd: subprocessRoot,
     })
+    pruneRuntimeTree(join(installRoot, 'node_modules'))
 
     const installedEntry = join(installRoot, DSH_ENTRY)
     if (!existsSync(installedEntry)) fail(`installed dsh entry is missing: ${installedEntry}`)
