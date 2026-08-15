@@ -16,5 +16,8 @@
     "dev": "cargo run --manifest-path native/Cargo.toml --",
     "package": "node scripts/build-bundle.mjs",
     "start": "cargo run --release --manifest-path native/Cargo.toml --"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
