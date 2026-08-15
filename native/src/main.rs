@@ -42,10 +42,12 @@ const LOADING_HTML: &str = r#"<!doctype html>
   p { margin: 0; color: #aeb7c6; }
   .bar { height: 2px; margin-top: 1.25rem; overflow: hidden; background: #293241; }
   .bar::after { content: ""; display: block; width: 40%; height: 100%; background: #4c8fd6; animation: progress 1.1s ease-in-out infinite alternate; }
+  .hint { margin-top: 1rem; font-size: .85rem; color: #7d8797; }
   @keyframes progress { to { transform: translateX(150%); } }
   @media (prefers-reduced-motion: reduce) { .bar::after { width: 100%; animation: none; } }
 </style>
-<main><h1>Starting DSH Deck</h1><p>Waiting for the local DeepSeek Harness runtime.</p><div class="bar"></div></main>
+<main><h1>Starting DSH Deck</h1><p>Waiting for the local DeepSeek Harness runtime.</p><div class="bar"></div><p class="hint" id="first-launch-hint" hidden>Still starting. The first launch can take a few minutes while the operating system inspects the app&#39;s files; later launches are much faster.</p></main>
+<script>setTimeout(() => { document.getElementById("first-launch-hint").hidden = false }, 10000)</script>
 </html>"#;
 
 #[derive(Debug, Parser)]
