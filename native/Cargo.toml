@@ -13,7 +13,9 @@ tao = "0.35.3"
 url = "2.5.7"
 wry = "0.55.1"
 
-[target.'cfg(windows)'.build-dependencies]
+# Unconditional so build.rs compiles on every host; its runtime target check
+# keeps non-Windows targets resource-free.
+[build-dependencies]
 winresource = "0.1.23"
 
 [lints.rust]
