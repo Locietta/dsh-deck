@@ -1,6 +1,8 @@
 # DSH Deck
 
-[DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 的桌面程序，使用系统 WebView 运行完整的 dsh Web UI 和 Cordis 浏览器插件。
+打包好的[DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 的桌面程序，使用系统 WebView 运行 dsh Web UI。
+
+![dsh deck](https://files.seeusercontent.com/2026/08/15/c0qX/pasted-image-1786818427987.webp)
 
 ## 开发
 
