@@ -33,7 +33,12 @@ jobs:
           repository: deepseek-ai/deepseek-harness
           path: dsh-src
 
+      # Standalone installs pnpm as a native pnpm.exe rather than a .cmd shim;
+      # dsh's release scripts spawn bare `pnpm` without a shell, which cannot
+      # execute .cmd files on Windows.
       - uses: pnpm/action-setup@v6
+        with:
+          standalone: true
 
       - uses: actions/setup-node@v7
         with:
