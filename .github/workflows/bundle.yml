@@ -22,7 +22,7 @@ jobs:
     name: Bundle (win-x64)
     runs-on: windows-latest
     outputs:
-      artifact: ${{ steps.zip.outputs.artifact }}
+      artifact: ${{ steps.pack.outputs.artifact }}
     env:
       RUNTIME_NODE_VERSION: 26.7.0
     steps:
@@ -74,21 +74,21 @@ jobs:
       - name: Build and package bundle
         run: pnpm package -- --dsh-root dsh-src --node-root $env:NODE_ROOT
 
-      - name: Zip bundle
-        id: zip
-        # Archive from inside dist/ so the bundle folder is the zip root
+      - name: Compress bundle
+        id: pack
+        # Archive from inside dist/ so the bundle folder is the archive root
         # instead of being nested under dist/.
         working-directory: dist
         run: |
           $name = "dsh-deck-${{ inputs.version }}-win-x64"
           Rename-Item bundle $name
-          7z a "../$name.zip" $name
+          7z a -mx=9 "../$name.7z" $name
           "artifact=$name" | Out-File -Append $env:GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.zip.outputs.artifact }}
-          path: ${{ steps.zip.outputs.artifact }}.zip
+          name: ${{ steps.pack.outputs.artifact }}
+          path: ${{ steps.pack.outputs.artifact }}.7z
           if-no-files-found: error
           compression-level: 0
           retention-days: ${{ inputs.retention-days }}
